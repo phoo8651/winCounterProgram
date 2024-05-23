@@ -180,7 +180,7 @@ int handleManualMode(const std::string& fname) {
         }
 
         // 0.1초마다 갱신
-        std::this_thread::sleep_for(std::chrono::milliseconds(Interval));
+        std::this_thread::sleep_for(std::chrono::seconds(Interval));
     }
 
     // 소켓 종료

@@ -1,4 +1,8 @@
+import tkinter as tk
+from tkinter import ttk
 import socket
+import json
+import threading
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
@@ -32,36 +36,78 @@ def decrypt_message(private_key, encrypted_message_base64):
 private_key_file = "private_key.pem"
 private_key = load_private_key(private_key_file)
 
-host = '0.0.0.0'
-port = 5078
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((host, port))
-server_socket.listen(5)
+class ServerMonitorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Server Monitor")
 
-print(f"서버가 {port}번 포트에서 수신 대기 중입니다...")
+        # 클라이언트 정보 출력 프레임
+        self.output_frame = ttk.LabelFrame(root, text="Client Status")
+        self.output_frame.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W+tk.E)
 
-try:
-    while True:
-        client_socket, addr = server_socket.accept()
-        print(f"연결 수립: {addr}")
+        ttk.Label(self.output_frame, text="Client IP").grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(self.output_frame, text="Server Name").grid(row=0, column=1, padx=5, pady=5)
+        ttk.Label(self.output_frame, text="CPU Usage (%)").grid(row=0, column=2, padx=5, pady=5)
+        ttk.Label(self.output_frame, text="Memory Usage (%)").grid(row=0, column=3, padx=5, pady=5)
+        ttk.Label(self.output_frame, text="Disk Usage (%)").grid(row=0, column=4, padx=5, pady=5)
 
-        try:
-            while True:
+        self.client_info_labels = {}
+
+        # 서버 소켓 생성 및 연결 수락 스레드 시작
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind(('localhost', 5078))  # 변경 가능한 포트 설정
+        self.server_socket.listen(10)
+        threading.Thread(target=self.accept_connections).start()
+
+    def accept_connections(self):
+        while True:
+            client_socket, client_address = self.server_socket.accept()
+            threading.Thread(target=self.receive_client_info, args=(client_socket, client_address)).start()
+
+    def receive_client_info(self, client_socket, client_address):
+        while True:
+            try:
                 data = client_socket.recv(4096)
                 if not data:
                     break
 
-                encrypted_message_base64 = data.decode('utf-8').strip()  # 수신 데이터 디코딩 및 공백 제거
-                print(f"수신된 Base64 인코딩 메시지: {encrypted_message_base64}")
-
+                encrypted_message_base64 = data.decode('utf-8').strip()
                 decrypted_message = decrypt_message(private_key, encrypted_message_base64)
-                print(f"복호화된 메시지: {decrypted_message}")
-        finally:
-            client_socket.close()
-            print(f"연결 종료: {addr}")
+                client_info = json.loads(decrypted_message)
+                self.update_client_info(client_info, client_address)
+            except Exception as e:
+                print("Error:", e)
+                break
+        client_socket.close()
 
-except KeyboardInterrupt:
-    print("서버를 종료합니다...")
+    def update_client_info(self, client_info, client_address):
+        ip = client_address[0]
+        server_name = client_info["name"]
+        cpu_usage = client_info["cpu_usage"]
+        memory_usage = client_info["memory_usage"]
+        disk_usage = client_info["disk_usage"]
 
-server_socket.close()
+        if ip not in self.client_info_labels:
+            row = len(self.client_info_labels) + 1
+            ttk.Label(self.output_frame, text=ip).grid(row=row, column=0, padx=5, pady=5)
+            self.client_info_labels[ip] = {
+                "name" : tk.StringVar(value="{:s}".format(server_name)),
+                "cpu": tk.StringVar(value="{:.2f}".format(cpu_usage)),
+                "memory": tk.StringVar(value="{:.2f}".format(memory_usage)),
+                "disk": tk.StringVar(value="{:.2f}".format(disk_usage))
+            }
+            ttk.Label(self.output_frame, textvariable=self.client_info_labels[ip]["name"]).grid(row=row, column=1, padx=5, pady=5)
+            ttk.Label(self.output_frame, textvariable=self.client_info_labels[ip]["cpu"]).grid(row=row, column=2, padx=5, pady=5)
+            ttk.Label(self.output_frame, textvariable=self.client_info_labels[ip]["memory"]).grid(row=row, column=3, padx=5, pady=5)
+            ttk.Label(self.output_frame, textvariable=self.client_info_labels[ip]["disk"]).grid(row=row, column=4, padx=5, pady=5)
+        else:
+            self.client_info_labels[ip]["name"].set("{:s}".format(server_name))
+            self.client_info_labels[ip]["cpu"].set("{:.2f}".format(cpu_usage))
+            self.client_info_labels[ip]["memory"].set("{:.2f}".format(memory_usage))
+            self.client_info_labels[ip]["disk"].set("{:.2f}".format(disk_usage))
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ServerMonitorApp(root)
+    root.mainloop()
