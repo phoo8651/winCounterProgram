@@ -167,7 +167,6 @@ int handleManualMode(const std::string& fname) {
 
             // 암호화된 데이터를 Base64로 인코딩 (전송을 위해)
             const std::string base64EncodedData = base64_encode(reinterpret_cast<const unsigned char*>(encryptedData.c_str()), encryptedData.size());
-
             // 데이터 송신
             result = socketModule.sendMessage(connectSocket, base64EncodedData); // SocketModule의 데이터 송신 함수 호출
             if (result == SOCKET_ERROR) {

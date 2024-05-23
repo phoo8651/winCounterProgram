@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-// ÆÄÀÏ ³»¿ëÀ» ¹®ÀÚ¿­·Î ÀĞ´Â ÇÔ¼ö
+// íŒŒì¼ ë‚´ìš©ì„ ë¬¸ìì—´ë¡œ ì½ëŠ” í•¨ìˆ˜
 std::string readFile(const std::string& fileName) {
     std::ifstream file(fileName, std::ios::in | std::ios::binary);
     if (!file) {
@@ -17,12 +17,12 @@ std::string readFile(const std::string& fileName) {
     return content;
 }
 
-// °ø°³ Å°¸¦ ·ÎµåÇÏ´Â ÇÔ¼ö
+// ê³µê°œ í‚¤ë¥¼ ë¡œë“œí•˜ëŠ” í•¨ìˆ˜
 void RSAHandler::loadPublicKey(const std::string& publicKeyFile) {
     publicKey = readFile(publicKeyFile);
 }
 
-// RSA °ø°³ Å°·Î µ¥ÀÌÅÍ¸¦ ¾ÏÈ£È­ÇÏ´Â ÇÔ¼ö
+// RSA ê³µê°œ í‚¤ë¡œ ë°ì´í„°ë¥¼ ì•”í˜¸í™”í•˜ëŠ” í•¨ìˆ˜
 std::string RSAHandler::encrypt(const std::string& data) {
     BIO* keybio = BIO_new_mem_buf(publicKey.data(), static_cast<int>(publicKey.size()));
     if (keybio == NULL) {
@@ -38,7 +38,14 @@ std::string RSAHandler::encrypt(const std::string& data) {
     int rsaLen = RSA_size(rsa);
     std::vector<unsigned char> encryptedText(rsaLen);
 
-    int result = RSA_public_encrypt(static_cast<int>(data.size()), reinterpret_cast<const unsigned char*>(data.c_str()), encryptedText.data(), rsa, RSA_PKCS1_OAEP_PADDING);
+    // Use RSA_padding_add_PKCS1_OAEP_mgf1 instead of RSA_public_encrypt
+    if (!RSA_padding_add_PKCS1_OAEP_mgf1(encryptedText.data(), rsaLen, reinterpret_cast<const unsigned char*>(data.c_str()), data.size(), NULL, 0, EVP_sha256(), EVP_sha256())) {
+        RSA_free(rsa);
+        BIO_free(keybio);
+        throw std::runtime_error("Failed to encrypt message");
+    }
+
+    int result = RSA_private_encrypt(rsaLen, encryptedText.data(), encryptedText.data(), rsa, RSA_NO_PADDING);
     RSA_free(rsa);
     BIO_free(keybio);
 
