@@ -21,8 +21,6 @@ void signalHandler(int signal) {
 }
 
 int handleManualMode(const std::string& fname);
-int handleBackgroundMode();
-int handleStartupMode();
 
 int main() {
     std::string filename = "Settings.ini";
@@ -36,47 +34,20 @@ int main() {
 
     // 설정값을 로드
     loadSettings(filename);
-
-    switch (g_mode) {
-    case Mode::Manual:
-        if (handleManualMode(filename) != 0) {
-            std::cout << "Failed to handle Manual Mode" << std::endl;
-            return 1;
-        }
-        else {
-            std::cout << "Successfully handled Manual Mode" << std::endl;
-        }
-        break;
-    case Mode::Background:
-        if (handleBackgroundMode() != 0) {
-            std::cout << "Failed to handle Background Mode" << std::endl;
-        }
-        else {
-            std::cout << "Successfully handled Background Mode" << std::endl;
-        }
-        break;
-    case Mode::Startup:
-        if (handleStartupMode() != 0) {
-            std::cout << "Failed to handle Startup Mode" << std::endl;
-        }
-        else {
-            std::cout << "Successfully handled Startup Mode" << std::endl;
-        }
-        break;
-    default:
-        std::cout << "Unknown mode" << std::endl;
-        break;
+    if (handleManualMode(filename) != 0) {
+        std::cout << "Failed to handle Manual Mode" << std::endl;
+        return 1;
     }
-
+    else {
+        std::cout << "Successfully handled Manual Mode" << std::endl;
+    }
     return 0;
 }
 
 
-// Mode에 따른 함수
 int handleManualMode(const std::string& fname) {
     std::cout << "Handling Manual Mode" << std::endl;
 
-    // 입력 받기
     char Hostname[256], RemoteAddr[256];
     int RemotePort, Interval;
 
@@ -96,7 +67,6 @@ int handleManualMode(const std::string& fname) {
         g_remoteAddr = RemoteAddr;
         g_remotePort = RemotePort;
         g_hostName = Hostname;
-        g_mode = Mode::Manual;
         g_interval = Interval;
 
         writeSettings(fname);
@@ -187,20 +157,5 @@ int handleManualMode(const std::string& fname) {
     socketModule.closeSocket(connectSocket); // SocketModule의 소켓 닫기 함수 호출
     socketModule.cleanupWinsock(); // SocketModule의 클리닝 함수 호출
     std::cout << "Exited manual mode gracefully." << std::endl;
-    return 0;
-}
-
-
-int handleBackgroundMode() {
-    std::cout << "Handling Background Mode" << std::endl;
-    // Background 모드에 대한 처리 코드 추가
-
-    return 0;
-}
-
-int handleStartupMode() {
-    std::cout << "Handling Startup Mode" << std::endl;
-    // Startup 모드에 대한 처리 코드 추가
-
     return 0;
 }
