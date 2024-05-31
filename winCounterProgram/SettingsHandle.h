@@ -12,22 +12,12 @@ const std::string DEFAULT_HOST_NAME = "SERVER";
 const std::string DEFAULT_MODE = "Manual";
 const int DEFAULT_INTERVAL = 1;
 
-enum class Mode {
-    Manual,
-    Background,
-    Startup,
-    Unknown
-};
-
 // 전역 변수 선언
 extern std::string g_remoteAddr;
 extern int g_remotePort;
 extern std::string g_hostName;
-extern Mode g_mode;
 extern int g_interval;
 
-// 문자열을 Mode 열거형으로 변환하는 함수
-Mode stringToMode(const std::string& modeStr);
 
 // 기본 설정값을 포함한 Settings.ini 파일 생성 함수
 void createDefaultSettings(const std::string& filename);
