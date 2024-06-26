@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
 import base64
+import select
 
 def load_private_key(private_key_file):
     with open(private_key_file, "rb") as key_file:
@@ -66,6 +67,7 @@ class ServerMonitorApp:
         # 서버 소켓 초기화
         self.server_socket = None
         self.accept_thread = None
+        self.clients = []
 
         # 개인 키 로드
         private_key_file = "private_key.pem"
@@ -78,8 +80,9 @@ class ServerMonitorApp:
         # Start server with new port number
         port_number = int(self.port_entry.get())
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind(('localhost', port_number))
+        self.server_socket.bind(("0.0.0.0", port_number))
         self.server_socket.listen(10)
+        self.server_socket.setblocking(False)
         
         # Start accepting connections in a new thread
         self.accept_thread = threading.Thread(target=self.accept_connections)
@@ -93,6 +96,7 @@ class ServerMonitorApp:
         # Close server socket and stop accepting connections
         if self.server_socket:
             self.server_socket.close()
+            self.server_socket = None
         if self.accept_thread and self.accept_thread.is_alive():
             self.accept_thread.join()
 
@@ -105,27 +109,29 @@ class ServerMonitorApp:
 
     def accept_connections(self):
         while True:
-            client_socket, client_address = self.server_socket.accept()
-            threading.Thread(target=self.receive_client_info, args=(client_socket, client_address)).start()
-
-    def receive_client_info(self, client_socket, client_address):
-        while True:
             try:
-                data = client_socket.recv(4096)
-                if not data:
-                    break
-
-                encrypted_message_base64 = data.decode('utf-8').strip()
-                decrypted_message = decrypt_message(self.private_key, encrypted_message_base64)
-                if decrypted_message:
-                    client_info = json.loads(decrypted_message)
-                    self.update_client_info(client_info, client_address)
-                else:
-                    print("Failed to decrypt message from", client_address)
+                readable, _, _ = select.select([self.server_socket] + self.clients, [], [], 0.1)
+                for s in readable:
+                    if s is self.server_socket:
+                        client_socket, client_address = self.server_socket.accept()
+                        client_socket.setblocking(False)
+                        self.clients.append(client_socket)
+                    else:
+                        data = s.recv(4096)
+                        if not data:
+                            self.clients.remove(s)
+                            s.close()
+                        else:
+                            encrypted_message_base64 = data.decode('utf-8').strip()
+                            decrypted_message = decrypt_message(self.private_key, encrypted_message_base64)
+                            if decrypted_message:
+                                client_info = json.loads(decrypted_message)
+                                self.update_client_info(client_info, s.getpeername())
+                            else:
+                                print("Failed to decrypt message from", s.getpeername())
             except Exception as e:
-                print("Error receiving data from", client_address, ":", e)
+                print("Error:", e)
                 break
-        client_socket.close()
 
     def update_client_info(self, client_info, client_address):
         ip = client_address[0]
