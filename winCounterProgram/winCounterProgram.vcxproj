@@ -86,8 +86,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\openssl\x64\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\openssl\x64\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\OpenSSL\include\openssl;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\OpenSSL\lib\VC\x64\MDd;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
